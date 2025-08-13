@@ -1,4 +1,8 @@
-use std::process::exit;
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    process::exit,
+};
 
 struct SearchQuery<'a> {
     term: &'a str,
@@ -10,46 +14,47 @@ impl<'a> SearchQuery<'a> {
         Self { term, filenames }
     }
 
-    fn search<'b>(&self, file_content: &'b str) -> Vec<&'b str> {
-        if file_content.is_empty() {
-            eprintln!("File is empty");
-            exit(1)
-        }
-
-        file_content
+    fn search(&self, reader: BufReader<File>) -> Vec<String> {
+        reader
             .lines()
-            .filter(|line| line.contains(self.term))
+            .filter_map(|line_result| match line_result {
+                Ok(line) if line.contains(self.term) => Some(line),
+                _ => None,
+            })
             .collect()
     }
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    // 1 args is binry name
+
     if args.len() < 3 {
-        eprintln!("Not enought args");
-        exit(1)
+        eprintln!("Usage: {} <search_term> <file1> [file2...]", args[0]);
+        exit(1);
     }
 
     let term = &args[1];
     let filenames: Vec<&str> = args[2..].iter().map(|s| s.as_str()).collect();
-
     let query = SearchQuery::new(term, filenames);
 
-    // ? for now only reading first file. will impliment multiple files later.
-    let file_content =
-        std::fs::read_to_string(query.filenames[0]).expect("Failed to read the file");
+    let mut i = 0;
+    while i < query.filenames.len() {
+        let file = File::open(query.filenames[i])
+            .unwrap_or_else(|_| panic!("Failed to open file {}", query.filenames[i]));
 
-    let result = query.search(&file_content);
-    match result.is_empty() {
-        true => {
-            eprintln!("No matches found");
-            exit(1)
+        let reader = BufReader::new(file);
+        let result = query.search(reader);
+
+        if result.is_empty() {
+            eprintln!("No matches found for {}", query.filenames[i]);
         }
-        false => {
-            for line in result {
-                println!("{line}");
+
+        for line in result {
+            match query.filenames.len() {
+                1 => println!("{line}"),
+                _ => println!("{:<15}{}", query.filenames[i], line),
             }
         }
+        i += 1;
     }
 }
