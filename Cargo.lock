@@ -3,5 +3,17 @@
 version = 4
 
 [[package]]
+name = "cli"
+version = "0.1.0"
+
+[[package]]
+name = "grep"
+version = "0.1.0"
+
+[[package]]
 name = "tinygrep"
 version = "0.1.0"
+dependencies = [
+ "cli",
+ "grep",
+]
