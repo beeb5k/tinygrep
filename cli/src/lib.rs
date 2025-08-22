@@ -1,3 +1,6 @@
+use std::fmt;
+use std::collections::HashMap;
+
 /// Represents a command-line flag.
 ///
 /// A `Command` defines one possible flag your program accepts,
@@ -8,32 +11,178 @@ pub struct Command {
     pub flag: &'static str,
 
     /// Alternative names (aliases) for the flag (e.g., `["-h"]`).
-    pub aliases: Vec<&'static str>,
+    pub aliase: &'static str,
 
     /// Indicates whether this flag expects a value.
     ///
     /// If `true`, the flag should be followed by an argument
     /// (e.g., `"--file config.toml"`). If `false`, it is a standalone flag.
-    pub value: bool,
+    pub takes_value: bool,
 
     /// A short description of the flag, for help messages.
     pub description: &'static str,
 }
 
-impl Command {
-    /// Validates the provided command-line arguments against a list of known commands.
-    pub fn validate(commands: &[Command], args: &[String]) {
-        for arg in args {
-            if arg.starts_with('-') {
-                let valid = commands
-                    .iter()
-                    .any(|cmd| cmd.flag == *arg || cmd.aliases.contains(&arg.as_str()));
+/// Represents the parsed value of a flag.
+#[derive(Debug, PartialEq)]
+pub enum FlagValue {
+    /// A boolean flag (present or not).
+    Bool(bool),
 
-                if !valid {
-                    eprintln!("invalid flag: {arg}");
-                }
-            }
+    /// A flag that accepts a string value.
+    Str(Option<String>),
+}
+
+/// Errors that can occur while parsing CLI arguments.
+#[derive(Debug, PartialEq)]
+pub enum CliError {
+    UnknownFlag(String),
+    MissingValue(String),
+}
+
+impl fmt::Display for CliError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CliError::UnknownFlag(flag) => write!(f, "unknown flag: {flag}"),
+            CliError::MissingValue(flag) => write!(f, "missing value for flag {flag}"),
         }
     }
 }
 
+/// A map of parsed command-line flags to their values.
+pub type ParsedArgs = HashMap<String, FlagValue>;
+
+impl Command {
+    pub fn print_help() {
+        todo!();
+    }
+    /// Parse the given command-line arguments according to the provided commands.
+    pub fn parse_args(commands: &[Command], args: &[String]) -> Result<ParsedArgs, CliError> {
+        let mut parsed = HashMap::new();
+        let mut iter = args.iter().peekable();
+
+        while let Some(arg) = iter.next() {
+            if arg.starts_with('-') {
+                let command = commands.iter().find(|c| c.flag == arg || c.aliase == arg);
+
+                match command {
+                    Some(cmd) => Self::handle_command(cmd, &mut iter, &mut parsed)?,
+                    None => return Err(CliError::UnknownFlag(arg.clone())),
+                }
+            }
+        }
+
+        Ok(parsed)
+    }
+
+    /// Handle a recognized flag by either inserting a boolean or extracting its value.
+    fn handle_command<'a, I>(
+        cmd: &Command,
+        iter: &mut std::iter::Peekable<I>,
+        parsed: &mut ParsedArgs,
+    ) -> Result<(), CliError>
+    where
+        I: Iterator<Item = &'a String>,
+    {
+        if cmd.takes_value {
+            let val = Self::extract_value(cmd, iter)?;
+            parsed.insert(cmd.flag.to_string(), FlagValue::Str(Some(val)));
+        } else {
+            parsed.insert(cmd.flag.to_string(), FlagValue::Bool(true));
+        }
+
+        Ok(())
+    }
+
+    /// Extracts the value for a flag that requires one.
+    fn extract_value<'a, I>(
+        cmd: &Command,
+        iter: &mut std::iter::Peekable<I>,
+    ) -> Result<String, CliError>
+    where
+        I: Iterator<Item = &'a String>,
+    {
+        match iter.peek() {
+            Some(next) if !next.starts_with('-') => Ok(iter.next().unwrap().to_string()),
+            _ => Err(CliError::MissingValue(cmd.flag.to_string())),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    const CMDS: [Command; 3] = [
+        Command {
+            flag: "--file",
+            aliase: "-f",
+            takes_value: true,
+            description: "File",
+        },
+        Command {
+            flag: "--help",
+            aliase: "-h",
+            takes_value: false,
+            description: "Show help",
+        },
+        Command {
+            flag: "--pattern",
+            aliase: "-p",
+            takes_value: true,
+            description: "Search pattern",
+        },
+    ];
+
+    fn s(x: &str) -> String {
+        x.to_string()
+    }
+
+    #[test]
+    fn test_parse_single_flag_with_value() {
+        let args = vec![s("-f"), s("cats.txt")];
+        let parsed = Command::parse_args(&CMDS, &args).unwrap();
+
+        assert_eq!(
+            parsed.get("--file"),
+            Some(&FlagValue::Str(Some("cats.txt".into())))
+        );
+    }
+
+    #[test]
+    fn test_parse_multiple_flags() {
+        let args = vec![s("-f"), s("dogs.txt"), s("--pattern"), s("orange car")];
+        let parsed = Command::parse_args(&CMDS, &args).unwrap();
+
+        assert_eq!(
+            parsed.get("--file"),
+            Some(&FlagValue::Str(Some("dogs.txt".into())))
+        );
+        assert_eq!(
+            parsed.get("--pattern"),
+            Some(&FlagValue::Str(Some("orange car".into())))
+        );
+    }
+
+    #[test]
+    fn test_parse_boolean_flag() {
+        let args = vec![s("-h")];
+        let parsed = Command::parse_args(&CMDS, &args).unwrap();
+
+        assert_eq!(parsed.get("--help"), Some(&FlagValue::Bool(true)));
+    }
+
+    #[test]
+    fn test_missing_value() {
+        let args = vec![s("-f")];
+        let res = Command::parse_args(&CMDS, &args);
+        assert_eq!(res, Err(CliError::MissingValue("--file".into())));
+    }
+
+    #[test]
+    fn test_unknown_flag() {
+        let args = vec![s("--unknown")];
+        let res = Command::parse_args(&CMDS, &args);
+        assert_eq!(res, Err(CliError::UnknownFlag("--unknown".into())));
+    }
+}
