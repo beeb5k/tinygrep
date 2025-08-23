@@ -1,13 +1,26 @@
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Debug, Clone)]
 pub enum Cats {
-    Miscellaneous,
     Pattern,
     Interpretation,
+    Miscellaneous,
     Output,
     Context,
+}
+
+impl fmt::Display for Cats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Cats::Miscellaneous => "Miscellaneous",
+            Cats::Pattern => "Pattern",
+            Cats::Interpretation => "Interpretation",
+            Cats::Output => "Output",
+            Cats::Context => "Context",
+        };
+        write!(f, "{name}")
+    }
 }
 
 /// Represents a command-line flag.
@@ -15,6 +28,7 @@ pub enum Cats {
 /// A `Command` defines one possible flag your program accepts,
 /// including its primary name, aliases, whether it expects a value,
 /// and a short description for help messages.
+#[derive(Debug)]
 pub struct Command {
     /// The primary name of the flag (e.g., `"--help"`).
     pub flag: &'static str,
@@ -67,16 +81,31 @@ pub type ParsedArgs = HashMap<String, FlagValue>;
 impl Command {
     /// Prints all the commands to stdout
     pub fn print_help(commands: &[Command], bin: &str) {
-        let mut help_str = String::new();
-        help_str.push_str(&format!("Usage: {bin} [OPTION]... PATTERNS [FILE]...\n"));
+        let mut final_output = String::new();
+        let mut grouped: HashMap<Cats, Vec<&Command>> = HashMap::new();
+
         for cmd in commands {
-            help_str.push_str(&format!(
-                "{}, {:<11}{}\n",
-                cmd.aliase, cmd.flag, cmd.description
-            ));
+            grouped.entry(cmd.cat.clone()).or_default().push(cmd);
         }
 
-        println!("{help_str}");
+        let mut categories: Vec<_> = grouped.keys().collect();
+        categories.sort();
+
+        final_output.push_str(&format!("Usage: {bin} [OPTIONS] PATTERNS [FILES]\n\n"));
+
+        for cat in categories {
+            if let Some(cmds) = grouped.get(cat) {
+                final_output.push_str(&format!("{cat}:\n"));
+                for c in cmds {
+                    final_output.push_str(&format!(
+                        "  {:<3} {:<12} {}\n",
+                        c.aliase, c.flag, c.description
+                    ));
+                }
+            }
+        }
+
+        println!("{final_output}");
     }
 
     /// Parse the given command-line arguments according to the provided commands.
