@@ -1,6 +1,14 @@
 use std::fmt;
 use std::collections::HashMap;
 
+pub enum Cats {
+    Miscellaneous,
+    Pattern,
+    Interpretation,
+    Output,
+    Context
+}
+
 /// Represents a command-line flag.
 ///
 /// A `Command` defines one possible flag your program accepts,
@@ -21,6 +29,9 @@ pub struct Command {
 
     /// A short description of the flag, for help messages.
     pub description: &'static str,
+
+    /// Category command belongs to.
+    pub cat : Cats
 }
 
 /// Represents the parsed value of a flag.
@@ -119,18 +130,21 @@ mod test {
             aliase: "-f",
             takes_value: true,
             description: "File",
+            cat : Cats::Interpretation,
         },
         Command {
             flag: "--help",
             aliase: "-h",
             takes_value: false,
             description: "Show help",
+            cat : Cats::Miscellaneous,
         },
         Command {
             flag: "--pattern",
             aliase: "-p",
             takes_value: true,
             description: "Search pattern",
+            cat : Cats::Pattern,
         },
     ];
 
