@@ -1,12 +1,13 @@
-use std::fmt;
 use std::collections::HashMap;
+use std::fmt;
 
+#[derive(Eq, PartialEq, PartialOrd, Ord)]
 pub enum Cats {
     Miscellaneous,
     Pattern,
     Interpretation,
     Output,
-    Context
+    Context,
 }
 
 /// Represents a command-line flag.
@@ -31,7 +32,7 @@ pub struct Command {
     pub description: &'static str,
 
     /// Category command belongs to.
-    pub cat : Cats
+    pub cat: Cats,
 }
 
 /// Represents the parsed value of a flag.
@@ -64,9 +65,20 @@ impl fmt::Display for CliError {
 pub type ParsedArgs = HashMap<String, FlagValue>;
 
 impl Command {
-    pub fn print_help() {
-        todo!();
+    /// Prints all the commands to stdout
+    pub fn print_help(commands: &[Command], bin: &str) {
+        let mut help_str = String::new();
+        help_str.push_str(&format!("Usage: {bin} [OPTION]... PATTERNS [FILE]...\n"));
+        for cmd in commands {
+            help_str.push_str(&format!(
+                "{}, {:<11}{}\n",
+                cmd.aliase, cmd.flag, cmd.description
+            ));
+        }
+
+        println!("{help_str}");
     }
+
     /// Parse the given command-line arguments according to the provided commands.
     pub fn parse_args(commands: &[Command], args: &[String]) -> Result<ParsedArgs, CliError> {
         let mut parsed = HashMap::new();
@@ -130,21 +142,21 @@ mod test {
             aliase: "-f",
             takes_value: true,
             description: "File",
-            cat : Cats::Interpretation,
+            cat: Cats::Interpretation,
         },
         Command {
             flag: "--help",
             aliase: "-h",
             takes_value: false,
             description: "Show help",
-            cat : Cats::Miscellaneous,
+            cat: Cats::Miscellaneous,
         },
         Command {
             flag: "--pattern",
             aliase: "-p",
             takes_value: true,
             description: "Search pattern",
-            cat : Cats::Pattern,
+            cat: Cats::Pattern,
         },
     ];
 
