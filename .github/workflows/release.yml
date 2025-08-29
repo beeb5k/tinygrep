@@ -1,0 +1,24 @@
+name: Auto Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # Trigger on tags like v0.1.0
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Built-in token
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: "Release ${{ github.ref_name }}"
