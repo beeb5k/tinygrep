@@ -46,16 +46,10 @@ fn main() -> std::io::Result<()> {
             let matches = matcher.find_matches()?;
             let show_filenames = files.len() > 1;
 
-            let format_line = |m: &Match| {
-                if show_filenames {
-                    format!("{}: {}", m.filename, m.line)
-                } else {
-                    m.line.clone()
-                }
-            };
-
-            for m in &matches {
-                println!("{}", format_line(m));
+            if show_filenames {
+                print_matches(&matches, |m| println!("{}, {}", m.filename, m.line));
+            } else {
+                print_matches(&matches, |m| println!("{}", m.line));
             }
         }
         Err(e) => {
@@ -65,4 +59,10 @@ fn main() -> std::io::Result<()> {
     }
 
     Ok(())
+}
+
+fn print_matches(matches: &Vec<Match>, f: fn(m: &Match)) {
+    for m in matches {
+        f(m)
+    }
 }
