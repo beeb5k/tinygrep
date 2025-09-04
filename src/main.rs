@@ -2,7 +2,7 @@ mod cmds;
 
 use crate::cmds::COMMANDS;
 use cli::Command;
-use grep::PatternMatcher;
+use grep::{Match, PatternMatcher};
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
@@ -44,8 +44,18 @@ fn main() -> std::io::Result<()> {
                 .invert_match(pargs.contains_key("--invert-match"));
 
             let matches = matcher.find_matches()?;
+            let show_filenames = files.len() > 1;
+
+            let format_line = |m: &Match| {
+                if show_filenames {
+                    format!("{}: {}", m.filename, m.line)
+                } else {
+                    m.line.clone()
+                }
+            };
+
             for m in &matches {
-                println!("{}", m.line);
+                println!("{}", format_line(m));
             }
         }
         Err(e) => {

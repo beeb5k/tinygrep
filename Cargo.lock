@@ -12,7 +12,7 @@ version = "0.1.0"
 
 [[package]]
 name = "tinygrep"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cli",
  "grep",
