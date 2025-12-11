@@ -4,8 +4,6 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    fenix.url = "github:nix-community/fenix";
-    fenix.inputs.nixpkgs.follows = "nixpkgs";
     naersk.url = "github:nix-community/naersk";
     naersk.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -15,7 +13,6 @@
       self,
       nixpkgs,
       flake-utils,
-      fenix,
       naersk,
       ...
     }:
@@ -23,21 +20,26 @@
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        fenixLib = fenix.packages.${system};
-        rustToolChain = fenixLib.stable.toolchain;
         naerskLib = pkgs.callPackage naersk { };
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
         version = cargoToml.package.version;
         myPackage = naerskLib.buildPackage {
-          pname = "tgrep";
-          version = version;
-          edition = "2024";
+          pname = cargoToml.package.name;
+          version = cargoToml.package.version;
+          edition = cargoToml.package.edition;
           src = ./.;
         };
       in
       {
         devShells.default = pkgs.mkShell {
-          buildInputs = [ rustToolChain ];
+          buildInputs = [ 
+            cargo
+            rustfmt
+            rustc
+            rust-analyzer
+            clippy
+            lld
+          ];
         };
 
         packages.default = myPackage;
