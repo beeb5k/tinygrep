@@ -22,7 +22,6 @@
         pkgs = import nixpkgs { inherit system; };
         naerskLib = pkgs.callPackage naersk { };
         cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-        version = cargoToml.package.version;
         myPackage = naerskLib.buildPackage {
           pname = cargoToml.package.name;
           version = cargoToml.package.version;
